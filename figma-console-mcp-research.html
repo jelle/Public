@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Figma Console MCP — Deep Dive Research</title>
+<style>
+  :root {
+    --bg: #F9F5F1;
+    --surface: #FFFFFF;
+    --surface-raised: #F5F3EE;
+    --border: #E3DED9;
+    --text: #000629;
+    --text-body: #3C4059;
+    --text-muted: #6B7280;
+    --accent-orange: #f06523;
+    --accent-purple: #504DE8;
+    --accent-green: #059669;
+    --accent-cyan: #0F766E;
+    --accent-amber: #D97706;
+    --pastel-blue: #DBEAFE;
+    --pastel-green: #D1FAE5;
+    --pastel-purple: #EDE9FE;
+    --pastel-peach: #FFEDD5;
+    --pastel-pink: #FCE7F3;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-body);
+    font-family: var(--font);
+    font-size: 19px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* HERO */
+  .hero {
+    padding: 80px 0 60px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 .orange { color: var(--accent-orange); }
+  .hero h1 .purple { color: var(--accent-purple); }
+  .hero .subtitle {
+    font-size: 22px;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto 28px;
+  }
+  .hero .meta {
+    font-size: 16px;
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  /* TABLE OF CONTENTS */
+  .toc {
+    padding: 40px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toc h2 {
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+  .toc ol {
+    columns: 2;
+    column-gap: 40px;
+    padding-left: 20px;
+  }
+  .toc li {
+    margin-bottom: 10px;
+    font-size: 18px;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: border-color 0.2s;
+  }
+  .toc a:hover { border-color: var(--accent-purple); }
+
+  /* SECTIONS */
+  section {
+    padding: 56px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  section:last-child { border-bottom: none; }
+
+  h2 {
+    font-size: 38px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .section-kicker {
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent-purple);
+    margin-bottom: 6px;
+  }
+  h3 {
+    font-size: 27px;
+    font-weight: 600;
+    margin: 40px 0 14px;
+    color: var(--text);
+  }
+  h4 {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 28px 0 10px;
+    color: var(--text);
+  }
+  p { margin-bottom: 16px; }
+  p + p { margin-top: 0; }
+
+  strong { font-weight: 600; }
+  a { color: var(--accent-purple); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .lead {
+    font-size: 22px;
+    color: var(--text-muted);
+    margin-bottom: 36px;
+    line-height: 1.65;
+  }
+
+  /* CARDS */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+  }
+  .card h4 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
+  .card p {
+    font-size: 17px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .card .tag {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+  }
+  .tag-orange { background: var(--pastel-peach); color: #9A3412; }
+  .tag-purple { background: var(--pastel-purple); color: #5B21B6; }
+  .tag-green { background: var(--pastel-green); color: #065F46; }
+
+  /* COMPARISON TABLE */
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-size: 17px;
+  }
+  .comparison-table th {
+    text-align: left;
+    font-weight: 600;
+    padding: 14px 18px;
+    border-bottom: 2px solid var(--border);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .comparison-table th:nth-child(2) { color: #9A3412; }
+  .comparison-table th:nth-child(3) { color: #5B21B6; }
+  .comparison-table th:nth-child(4) { color: #065F46; }
+  .comparison-table td {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .comparison-table tr:hover td { background: var(--surface-raised); }
+  .comparison-table .check { color: var(--accent-green); }
+  .comparison-table .cross { color: #DC2626; opacity: 0.6; }
+  .comparison-table .num { font-family: var(--mono); font-weight: 500; }
+
+  /* TOOL CATEGORIES */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 24px 0;
+  }
+  .tool-category {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .tool-category h4 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tool-count {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: #5B21B6;
+    background: var(--pastel-purple);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .tool-category p {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* QUOTE */
+  blockquote {
+    border-left: 3px solid var(--accent-purple);
+    padding: 16px 24px;
+    margin: 24px 0;
+    background: var(--pastel-purple);
+    border-radius: 0 10px 10px 0;
+    font-style: italic;
+    color: var(--text-body);
+  }
+  blockquote strong { color: var(--text); font-style: normal; }
+
+  /* CODE */
+  code {
+    font-family: var(--mono);
+    font-size: 16px;
+    background: var(--surface-raised);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #5B21B6;
+  }
+  pre {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+    margin: 20px 0;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-body);
+  }
+
+  /* LISTS */
+  ul, ol { padding-left: 24px; margin-bottom: 20px; }
+  li { margin-bottom: 8px; }
+
+  /* WORKFLOW STEPS */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    padding: 20px 20px 20px 64px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 32px;
+    height: 32px;
+    background: var(--accent-purple);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .steps li strong { display: block; margin-bottom: 6px; }
+  .steps li p { margin: 0; font-size: 17px; color: var(--text-muted); }
+
+  /* VIDEO LIST */
+  .video-list {
+    list-style: none;
+    padding: 0;
+  }
+  .video-list li {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .video-list li:last-child { border-bottom: none; }
+  .video-list .title { font-weight: 500; font-size: 17px; flex: 1; }
+  .video-list .views {
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-diagram {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 36px;
+    margin: 28px 0;
+    font-family: var(--mono);
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--text-body);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .arch-diagram .highlight { color: #5B21B6; font-weight: 500; }
+  .arch-diagram .orange { color: #9A3412; }
+  .arch-diagram .green { color: #065F46; }
+
+  /* CALLOUT */
+  .callout {
+    background: var(--pastel-purple);
+    border: 1px solid #C4B5FD;
+    border-radius: 14px;
+    padding: 28px;
+    margin: 28px 0;
+  }
+  .callout h4 {
+    color: #5B21B6;
+    margin: 0 0 10px;
+    font-size: 19px;
+  }
+  .callout p {
+    font-size: 17px;
+    color: var(--text-body);
+    margin: 0;
+  }
+
+  .callout-amber {
+    background: #FEF3C7;
+    border-color: #FCD34D;
+  }
+  .callout-amber h4 { color: #92400E; }
+
+  /* ARTICLE LIST */
+  .article-list {
+    list-style: none;
+    padding: 0;
+  }
+  .article-list li {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .article-list li:last-child { border-bottom: none; }
+  .article-list .date {
+    font-size: 15px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .article-list h4 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .article-list p {
+    font-size: 17px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* SEPARATOR */
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 34px; }
+    h2 { font-size: 28px; }
+    .toc ol { columns: 1; }
+    .card-grid { grid-template-columns: 1fr; }
+    .tool-grid { grid-template-columns: 1fr; }
+    .comparison-table { font-size: 12px; }
+    .comparison-table td, .comparison-table th { padding: 8px; }
+  }
+
+  /* IMAGES */
+  .slide-img {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    margin: 20px 0;
+    display: block;
+    box-shadow: var(--shadow-lg);
+  }
+  .slide-caption {
+    font-size: 16px;
+    color: var(--text-muted);
+    text-align: center;
+    margin: -12px 0 28px;
+    font-style: italic;
+  }
+
+  /* STICKY NAV */
+  .sticky-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(249,245,241,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    display: none;
+  }
+  .sticky-nav.visible { display: block; }
+  .sticky-nav-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .sticky-nav-inner::-webkit-scrollbar { display: none; }
+  .sticky-nav a {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  .sticky-nav a:hover {
+    color: var(--text);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .sticky-nav a.active {
+    color: #5B21B6;
+    background: var(--pastel-purple);
+    border-color: #C4B5FD;
+  }
+
+  /* PRINT */
+  @media print {
+    body { background: #fff; }
+    .sticky-nav { display: none !important; }
+    .slide-img { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sticky-nav" id="stickyNav">
+  <div class="sticky-nav-inner">
+    <a href="#landscape">Landscape</a>
+    <a href="#comparison">Comparison</a>
+    <a href="#console-deep-dive">Deep Dive</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#tools">106 Tools</a>
+    <a href="#tj-pitre">TJ Pitre</a>
+    <a href="#demo">Demos</a>
+    <a href="#workflows">Workflows</a>
+    <a href="#key-concepts">Concepts</a>
+    <a href="#patterns">Patterns</a>
+    <a href="#reading">Reading</a>
+    <a href="#resources">Resources</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- HERO -->
+<header class="hero">
+  <h1>Figma <span class="orange">MCPs</span> &amp; the <span class="purple">Console MCP</span><br>Deep Dive</h1>
+  <p class="subtitle">A comprehensive analysis of Figma's MCP ecosystem, with a deep dive into TJ Pitre's open-source Console MCP and how it changes design system workflows.</p>
+  <p class="meta">Compiled 28 May 2026 &middot; Sources: GitHub, Substack, Southleft blog, YouTube (46 videos), UXcamp presentation, community research</p>
+</header>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#landscape">The Landscape: Three Figma MCPs</a></li>
+    <li><a href="#comparison">Head-to-Head Comparison</a></li>
+    <li><a href="#console-deep-dive">Deep Dive: Figma Console MCP</a></li>
+    <li><a href="#architecture">Architecture &amp; Setup</a></li>
+    <li><a href="#tools">The 106 Tools</a></li>
+    <li><a href="#tj-pitre">Who is TJ Pitre</a></li>
+    <li><a href="#demo">The Demo: DS from a Single Prompt</a></li>
+    <li><a href="#workflows">Emergent Workflows</a></li>
+    <li><a href="#key-concepts">Key Concepts from TJ's Writing</a></li>
+    <li><a href="#patterns">Recurring Patterns &amp; Findings</a></li>
+    <li><a href="#reading">Essential Reading &amp; Watching</a></li>
+    <li><a href="#resources">Resources &amp; Links</a></li>
+  </ol>
+</nav>
+
+<!-- 1. THE LANDSCAPE -->
+<section id="landscape">
+  <p class="section-kicker">Section 1</p>
+  <h2>The Landscape: Three Figma MCPs</h2>
+  <p class="lead">There are three distinct MCP servers for Figma, each with a fundamentally different architecture and purpose. Understanding which does what is the first step.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-orange">Figma, Inc.</span>
+      <h4>Figma MCP (Official)</h4>
+      <p>Figma's first-party MCP. Primarily a <strong>design-to-code bridge</strong>. Uses the REST API for structured read access to files, components, variables, and Code Connect mappings. Recently added beta write capabilities. 16 tools. Rate-limited. Closed source.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">Southleft / TJ Pitre</span>
+      <h4>Figma Console MCP</h4>
+      <p>A full <strong>design system API</strong> with deep bidirectional control. Uses the Plugin API via a Desktop Bridge. 106 tools. Extraction, creation, modification, debugging, token management, accessibility, FigJam, Slides, version history. Open source (MIT). No rate limits.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-green">Anthropic / Figma</span>
+      <h4>Figma Plugin (for Claude)</h4>
+      <p>Anthropic's official Figma integration, available as a plugin inside Claude Code and Claude Desktop. Provides <code>use_figma</code> for Plugin API execution, <code>get_design_context</code>, <code>search_design_system</code>, and design generation skills. Runs via Figma's cloud.</p>
+    </div>
+  </div>
+
+  <blockquote>
+    "The official MCP gives you processed data. The Console MCP gives you full control. And together... <strong>like Batman and Robin.</strong>"
+    <br>&mdash; Kai-Uwe, 9elements (UXcamp 2026)
+  </blockquote>
+
+  <p>The key architectural distinction: <strong>REST API vs Plugin API</strong>. The official MCP reads design data through Figma's REST endpoints, which are rate-limited and read-only (write is in beta). The Console MCP runs a Desktop Bridge plugin inside Figma and communicates via WebSocket, giving it the same power as any native Figma plugin: create nodes, modify properties, manage variables, listen for events.</p>
+
+  <p>They are <strong>complementary, not competing</strong>. The emerging consensus: use Console MCP during the design phase (token setup, system management, audits), use the official MCP during handoff (Code Connect, framework-specific code generation).</p>
+
+  <img src="screenshots/slide-architecture-flow.png" alt="Architecture: Code to Figma and Figma to Code flow diagram" class="slide-img">
+  <p class="slide-caption">From Kai-Uwe's UXcamp 2026 presentation: the bidirectional flow between Figma and Code, showing which MCP handles each direction.</p>
+</section>
+
+<!-- 2. COMPARISON -->
+<section id="comparison">
+  <p class="section-kicker">Section 2</p>
+  <h2>Head-to-Head Comparison</h2>
+  <p class="lead">Numbers as of May 2026. The Console MCP has grown from 14 tools (remote) / 57 (local) in January to 106 tools in v1.29.0.</p>
+
+  <img src="screenshots/slide-comparison-table.png" alt="Side-by-side comparison: 16 tools vs 94+ tools" class="slide-img">
+  <p class="slide-caption">From Kai-Uwe's UXcamp presentation. The headline numbers: 16 vs 94+ tools, with Console MCP offering full API access, batch operations, real-time awareness, and no rate limits.</p>
+
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Official Figma MCP</th>
+        <th>Console MCP</th>
+        <th>Figma Plugin (Claude)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Total tools</strong></td>
+        <td class="num">16</td>
+        <td class="num">106</td>
+        <td class="num">~20 (via skills)</td>
+      </tr>
+      <tr>
+        <td><strong>Write/create tools</strong></td>
+        <td class="num">3 (beta)</td>
+        <td class="num">94+</td>
+        <td>Via <code>use_figma</code></td>
+      </tr>
+      <tr>
+        <td><strong>Variable management</strong></td>
+        <td class="cross">0 dedicated</td>
+        <td class="num">11 dedicated</td>
+        <td>Via <code>use_figma</code></td>
+      </tr>
+      <tr>
+        <td><strong>Batch operations</strong></td>
+        <td class="cross">No</td>
+        <td class="check">100 vars/call, 10-50x faster</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Arbitrary Plugin API</strong></td>
+        <td class="cross">No</td>
+        <td class="check"><code>figma_execute</code></td>
+        <td class="check"><code>use_figma</code></td>
+      </tr>
+      <tr>
+        <td><strong>Real-time awareness</strong></td>
+        <td class="cross">No</td>
+        <td class="check">Selection + document changes</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Token sync formats</strong></td>
+        <td class="cross">None</td>
+        <td class="check">10 formats (DTCG, CSS, Tailwind, SCSS, TS...)</td>
+        <td class="cross">None</td>
+      </tr>
+      <tr>
+        <td><strong>Design-code parity</strong></td>
+        <td class="cross">No</td>
+        <td class="check">8-dimension scored analysis</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Accessibility</strong></td>
+        <td class="cross">No</td>
+        <td class="check">WCAG lint + axe-core scan</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>FigJam tools</strong></td>
+        <td>Mermaid diagrams only</td>
+        <td class="num">9 tools</td>
+        <td>Via skills</td>
+      </tr>
+      <tr>
+        <td><strong>Figma Slides</strong></td>
+        <td class="cross">No</td>
+        <td class="num">15 tools</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Version history / blame</strong></td>
+        <td class="cross">No</td>
+        <td class="num">6 tools (binary-search blame)</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Code Connect</strong></td>
+        <td class="check">Yes (first-party)</td>
+        <td class="cross">No</td>
+        <td class="check">Yes</td>
+      </tr>
+      <tr>
+        <td><strong>Page capture into Figma</strong></td>
+        <td class="check"><code>generate_figma_design</code></td>
+        <td class="cross">No</td>
+        <td class="check">Via skills</td>
+      </tr>
+      <tr>
+        <td><strong>Rate limits</strong></td>
+        <td>Yes (plan-dependent)</td>
+        <td class="check">None</td>
+        <td>Token-based</td>
+      </tr>
+      <tr>
+        <td><strong>Enterprise required</strong></td>
+        <td>For some endpoints</td>
+        <td class="check">No (Plugin API path)</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td><strong>Open source</strong></td>
+        <td class="cross">No</td>
+        <td class="check">MIT</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td><strong>Pricing</strong></td>
+        <td>Becoming paid/usage-based</td>
+        <td><strong>Free forever</strong></td>
+        <td>Included with Claude</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 3. DEEP DIVE -->
+<section id="console-deep-dive">
+  <p class="section-kicker">Section 3</p>
+  <h2>Deep Dive: Figma Console MCP</h2>
+  <p class="lead">What started as a debugging tool for Figma plugins has evolved into a full design system operations platform with 106 tools.</p>
+
+  <h3>What it actually is</h3>
+  <p>Figma Console MCP turns your Figma file into a <strong>programmable, queryable API</strong>. Instead of clicking through panels to manage tokens, inspect components, or build documentation pages, you describe what you want in natural language and the AI executes it using the same Plugin API that native Figma plugins use.</p>
+
+  <p>The key differentiator is <code>figma_execute</code>: it runs <strong>arbitrary JavaScript</strong> in the context of the Figma Plugin API. This means anything a Figma plugin can do, an AI agent can do through Console MCP. Create frames, apply auto-layout, load fonts, build components, manage variants, set fills and strokes, create pages, read the entire document tree.</p>
+
+  <h3>What's new since early 2026</h3>
+  <p>The tool has evolved significantly. If you tried it in January and found it limited, it's worth revisiting:</p>
+  <ul>
+    <li><strong>v1.27 (May 16):</strong> Bidirectional token sync. Export to 10 formats, diff-aware import back.</li>
+    <li><strong>v1.28 (May 18):</strong> Full token export formatters: Tailwind v3/v4, SCSS, TypeScript, JSON, Style Dictionary v3, Tokens Studio. Replaces Style Dictionary end-to-end.</li>
+    <li><strong>v1.29 (May 22):</strong> Shared library inspection. Resolve any 40-char component key to full property definitions. Library variables on ALL Figma plans (not just Enterprise).</li>
+    <li><strong>Cloud Mode (v1.25):</strong> Full write access from browser-based AI tools (Claude.ai, v0, Lovable, Replit) via WebSocket relay. No Node.js required.</li>
+    <li><strong>Accessibility (v1.24):</strong> 14 WCAG checks + axe-core scan (104 rules).</li>
+    <li><strong>Version History (v1.23):</strong> File diffs, changelogs, binary-search blame walker (~8 API calls for 200 versions).</li>
+    <li><strong>Figma Slides (v1.22):</strong> 15 tools for slide creation, transitions, and templating.</li>
+  </ul>
+</section>
+
+<!-- 4. ARCHITECTURE -->
+<section id="architecture">
+  <p class="section-kicker">Section 4</p>
+  <h2>Architecture &amp; Setup</h2>
+
+  <h3>Three connection modes</h3>
+
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-purple">Full power</span>
+      <h4>Local Mode (NPX)</h4>
+      <p>106 tools. Full read/write. Real-time selection tracking. Requires Node.js 18+, Figma Desktop, a Personal Access Token, and the Desktop Bridge plugin. Setup: ~10 min.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">Browser-friendly</span>
+      <h4>Cloud Mode</h4>
+      <p>95 tools. Full read/write via cloud relay. Works with Claude.ai, v0, Replit, Lovable. Pairs via 6-char code. No Node.js. Requires Figma Desktop + Desktop Bridge. Setup: ~5 min.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">Zero setup</span>
+      <h4>Remote SSE</h4>
+      <p>9 tools. Read-only. Zero setup, OAuth auto-auth. Good for quick evaluation. No Desktop app needed.</p>
+    </div>
+  </div>
+
+  <h3>How the Desktop Bridge works</h3>
+  <div class="arch-diagram"><span class="highlight">Local Mode:</span>
+AI Client <span class="green">--stdio--></span> Local MCP Server (Node.js) <span class="green">--WebSocket:9223-9232--></span> Desktop Bridge Plugin <span class="green">--Plugin API--></span> Figma
+                                                   <span class="orange">--HTTPS--></span> Figma REST API
+
+<span class="highlight">Cloud Mode:</span>
+AI Client <span class="green">--HTTP--></span> Cloudflare Worker <span class="green">--fetch RPC--></span> PluginRelayDO (Durable Object) <span class="green">--WebSocket--></span> Desktop Bridge Plugin <span class="green">--Plugin API--></span> Figma</div>
+
+  <p>The Desktop Bridge plugin communicates via WebSocket on ports 9223-9232. Multi-instance support means you can run Claude Desktop and Claude Code simultaneously against the same Figma file. The plugin auto-connects to ALL active MCP servers.</p>
+
+  <div class="callout">
+    <h4>Enterprise security note</h4>
+    <p>Console MCP is self-hostable, MIT-licensed, with no telemetry. Console logs are stored in memory only, screenshots cleaned automatically. No data sent to external services. For corporate IT: the MCP server runs locally (or on your own Cloudflare account), and all Figma communication goes through the standard Desktop Bridge plugin + Figma's own Plugin API.</p>
+  </div>
+</section>
+
+<!-- 5. TOOLS -->
+<section id="tools">
+  <p class="section-kicker">Section 5</p>
+  <h2>The 106 Tools</h2>
+  <p class="lead">Categorized by function. All tools available in Local mode; Cloud mode has 95; Remote SSE has 9.</p>
+
+  <div class="tool-grid">
+    <div class="tool-category">
+      <h4>Variable Management <span class="tool-count">11</span></h4>
+      <p>Create/update/rename/delete variables and collections. Batch create (100/call). Add/rename modes. Atomic <code>setup_design_tokens</code> for collection+modes+variables in one operation.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Design System Extraction <span class="tool-count">10</span></h4>
+      <p>Get variables, styles, components (with reconstruction specs). Full DS kit in one call. Token values by collection/mode. Design system summary and health scoring.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Token Sync <span class="tool-count">2</span></h4>
+      <p>Bidirectional: export to 10 formats (DTCG, CSS, Tailwind v3/v4, SCSS, TS, JSON, Style Dictionary, Tokens Studio). Diff-aware import back to Figma.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Node Manipulation <span class="tool-count">9</span></h4>
+      <p>Resize, move, clone, delete, rename nodes. Set text, fills, strokes. Create child nodes. Image fills via base64.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Component Operations <span class="tool-count">8</span></h4>
+      <p>Search (local + cross-library), get library components, resolve 40-char keys, instantiate with overrides. Add/edit/delete component properties (boolean, text, instance swap, variant).</p>
+    </div>
+    <div class="tool-category">
+      <h4>Figma Slides <span class="tool-count">15</span></h4>
+      <p>List/create/delete/duplicate/reorder slides. Set transitions (22 styles, 8 easings). Add text and shapes. Background colors. Grid/single view. Text styles.</p>
+    </div>
+    <div class="tool-category">
+      <h4>FigJam <span class="tool-count">9</span></h4>
+      <p>Create stickies (batch 200), connectors, shapes, tables, code blocks. Auto-arrange (grid/row/column). Read board contents and connection graphs.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Version History <span class="tool-count">6</span></h4>
+      <p>List versions, snapshot at past version, structured diff, changes since version, markdown changelog with author enrichment, binary-search blame walker.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Design Creation <span class="tool-count">3</span></h4>
+      <p><code>figma_execute</code> runs arbitrary Plugin API JS. Arrange component sets with labels/grid. Set rich markdown descriptions on components.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Accessibility <span class="tool-count">3</span></h4>
+      <p>Design lint (14 WCAG checks + DS hygiene + layout). Component accessibility audit with scorecard. HTML scan via axe-core (104 rules).</p>
+    </div>
+    <div class="tool-category">
+      <h4>Deep Analysis <span class="tool-count">2</span></h4>
+      <p>Unlimited-depth component tree with resolved token names. Variant state machine analysis with CSS pseudo-class mappings.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Design-Code Parity <span class="tool-count">2</span></h4>
+      <p>Compare Figma specs vs code across 8 dimensions, scored 0-100. Generate platform-agnostic markdown documentation.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Annotations <span class="tool-count">3</span></h4>
+      <p>Read/write annotations with markdown, pinned properties, categories. List available annotation categories.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Comments <span class="tool-count">3</span></h4>
+      <p>Read, post (optionally pinned to node), and delete file comments.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Shared Library <span class="tool-count">3</span></h4>
+      <p>Get library variables (works on ALL plans). Import library variables into current file. Resolve component keys without library URLs.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Console &amp; Visual Debug <span class="tool-count">5</span></h4>
+      <p>Get/watch/clear console logs. Take screenshots (plugin/full-page/viewport). Reload plugin.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Navigation &amp; Status <span class="tool-count">3</span></h4>
+      <p>Navigate to file, check connection status, reconnect to Desktop.</p>
+    </div>
+    <div class="tool-category">
+      <h4>Real-Time Awareness <span class="tool-count">2</span></h4>
+      <p>Track user selection. Monitor document changes. Local mode only.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h4>The power tool: figma_execute</h4>
+    <p>This is Console MCP's most flexible tool. It executes <strong>arbitrary Figma Plugin API JavaScript</strong> in the context of the Desktop Bridge plugin. Full access to the <code>figma</code> global. Create any node type, apply auto-layout, load fonts, build components, manage variants. Default timeout 5s, max 30s. Returns structured data (node IDs, names) for follow-up operations. No equivalent exists in the official Figma MCP.</p>
+  </div>
+</section>
+
+<!-- 6. TJ PITRE -->
+<section id="tj-pitre">
+  <p class="section-kicker">Section 6</p>
+  <h2>Who is TJ Pitre</h2>
+
+  <p>TJ Pitre runs <strong>Southleft</strong>, a design systems consultancy. He built Figma Console MCP and maintains it as open source (MIT). He works with <strong>Brad Frost</strong> (of Atomic Design fame) and <strong>Ian Frost</strong>, and together they're building an <a href="https://aianddesign.systems">AI &amp; Design Systems course</a>.</p>
+
+  <p>His content output is prolific: 20+ articles on the Southleft blog, 14+ on his "Slot Machine" Substack, and 46 videos on YouTube since late 2025. Almost all focused on the intersection of design systems, MCP, and AI agents.</p>
+
+  <p>He coined several useful frameworks:</p>
+  <ul>
+    <li><strong>Context-Based Design Systems (CBDS)</strong> &mdash; design systems that encode not just appearance, but meaning, behavior, and usage intent. Each phase of the product lifecycle inherits context from the previous one.</li>
+    <li><strong>The Context Engineer</strong> &mdash; not a prompt engineer, but a system steward who owns metadata, AI generation models, MCPs, and cross-tooling communication fidelity.</li>
+    <li><strong>Declared vs Designed documentation</strong> &mdash; agents read description fields cheaply and correctly; visual "do/don't" frames require interpretation and fail.</li>
+  </ul>
+
+  <blockquote>"Inferred meaning is where agents get expensive and unreliable. <strong>Declared meaning is cheap and correct.</strong>"</blockquote>
+
+  <h3>Southleft ecosystem</h3>
+  <ul>
+    <li><strong>Figma Console MCP</strong> &mdash; the main tool (this document)</li>
+    <li><strong>FigmaLint</strong> &mdash; audit and score components, WCAG compliance</li>
+    <li><strong>Story UI</strong> &mdash; natural language UI generation from component libraries in Storybook</li>
+    <li><strong>Company Docs MCP</strong> &mdash; turn documentation into an AI assistant</li>
+    <li><strong>Southleft WordPress MCP</strong> &mdash; CMS management via AI</li>
+  </ul>
+</section>
+
+<!-- 7. THE DEMOS -->
+<section id="demo">
+  <p class="section-kicker">Section 7</p>
+  <h2>The Demos: Step by Step</h2>
+  <p class="lead">Detailed walkthroughs of the key demos that show what Console MCP can actually do. These are not marketing videos &mdash; they show real prompts, real tool calls, and real output.</p>
+
+  <!-- DEMO 1: UXcamp -->
+  <h3>Demo 1: UXcamp 2026 &mdash; Kai-Uwe (9elements)</h3>
+  <p class="lead" style="font-size:16px">This is the demo Grandin saw on Sunday. Presented by Kai-Uwe, a "Product Experience Engineer" at 9elements who designs the UX and engineers the frontend.</p>
+
+  <h4>The project: UXcamp Connect</h4>
+  <p>A Tinder-style networking app for UXcamp 2026 conference attendees. Match cards with compatibility scores, shared interest tags, level badges (Junior/Mid/Senior), and session type indicators. Dark theme, gradient buttons, rich color palette.</p>
+
+  <h4>Step 1: Design in Claude Design</h4>
+  <p>Kai-Uwe started in <strong>claude.ai/design</strong> (Claude's visual design tool). He described the app concept in German, specifying key screens (match feed, interest selection, agenda, "It's a Match!" moment), visual style (soft + rounded typography like Nunito/Poppins), tone (casual, Du-form, emoji OK), and platform (Android-style). Claude Design generated a high-fidelity mobile UI mockup with all the screens.</p>
+
+  <h4>Step 2: Handoff to Claude Code</h4>
+  <p>Using the "Handoff to Claude Code" button, the design transferred to Claude Code for implementation. At this point the design exists as running code (HTML/CSS) but is <strong>not yet in Figma</strong> and has no design system structure &mdash; it's just styled markup with hardcoded values.</p>
+
+  <h4>Step 3: Live modification via Claude Code</h4>
+  <p>Kai-Uwe demonstrated modifying the running design through natural language. The prompt shown in the presentation:</p>
+  <blockquote>"Change the button color to match the color of the button below."</blockquote>
+  <p>Claude Code understood the visual reference, identified the target button's gradient (pink-to-magenta), found the reference button below it (cyan-to-purple), and updated the gradient. The before/after was shown side-by-side: the "Show match" button changed from pink-magenta to cyan-purple gradient. No code was written manually.</p>
+
+  <h4>Step 4: The three-column workflow</h4>
+  <p>Kai-Uwe then introduced the two Figma MCPs and showed how they divide the work across three directions:</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-orange">Official MCP + Console MCP</span>
+      <h4>Code to Figma</h4>
+      <p><strong>Getting your code back into Figma.</strong> Official MCP: <code>generate_figma_design</code> captures a running page as flat design layers (AI prompt-to-design). <code>use_figma</code> for manual generation via Plugin API. Console MCP: <code>figma_execute</code> for system-level creation where you need governed components, not screenshots.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-orange">Official MCP</span>
+      <h4>Figma to Code</h4>
+      <p><strong>Reading designs to generate code.</strong> <code>get_design_context</code> is the workflow core &mdash; gives AI the full picture of a selected component. <code>get_metadata</code> for file structure. <code>get_variable_defs</code> for token precision. <code>search_design_system</code> for component reuse. <code>use_figma</code> as the escape hatch for anything else.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">Console MCP</span>
+      <h4>Claude in Figma</h4>
+      <p><strong>AI working directly inside Figma.</strong> <code>figma_execute</code> for full Plugin API access &mdash; anything a Figma plugin can do. <code>figma_check_design_parity</code> for automated verification against code. <code>figma_get_design_system_kit</code> extracts the entire DS in one call. <strong>No token limit. No rate limits.</strong></p>
+    </div>
+  </div>
+
+  <img src="screenshots/slide-three-workflows.png" alt="Three workflow columns: Code to Figma, Figma to Code, Claude in Figma" class="slide-img">
+  <p class="slide-caption">The three-column workflow from Kai-Uwe's presentation. Each column shows which MCP tools handle which direction. Note "No Token Limit" on Console MCP.</p>
+
+  <p>The key insight from Kai-Uwe's framing: the official MCP gives you <strong>processed data</strong> (structured, curated, ready for code generation). Console MCP gives you <strong>full control</strong> (raw Plugin API power, no guardrails). Together they're "like Batman and Robin."</p>
+
+  <img src="screenshots/slide-batman-robin.png" alt="Like Batman and Robin: Official MCP = Batman, Console MCP = Robin" class="slide-img">
+  <p class="slide-caption">Kai-Uwe's framing: Official MCP (Batman) and Console MCP (Robin) work best together.</p>
+
+  <h4>Step 5: The single-prompt design system</h4>
+  <p>The culminating demo. Starting from the UXcamp Connect design &mdash; which at this point exists in Figma as flat layers with hardcoded colors and sizes &mdash; Kai-Uwe ran this single prompt:</p>
+
+  <img src="screenshots/slide-demo-prompt.png" alt="The demo prompt shown on screen" class="slide-img">
+  <p class="slide-caption">The exact prompt from the presentation. Note the structure: extract existing system, create variables, build documentation page, verify visually.</p>
+
+  <pre><code>You are working inside Figma using the Figma Console MCP.
+Extract the existing design system including all tokens, styles and variables.
+Then set up all design tokens as variables -- covering colors, spacing,
+typography and border radius with a consistent naming convention.
+Create a new page called "Design System" with sections for Colors,
+Typography, Spacing and Border Radius, each as a structured frame with
+auto-layout. Every element must use the variables, no hardcoded values.
+Include the main components with their key variants.
+When done, verify the result visually.</code></pre>
+
+  <h4>What the AI did (under the hood)</h4>
+  <ol class="steps">
+    <li>
+      <strong>Extracted the existing design</strong>
+      <p>Called <code>figma_get_design_system_kit</code> to read all tokens, styles, and variables from the current file. Identified hardcoded color values, font sizes, spacing patterns, and border radius values used across frames.</p>
+    </li>
+    <li>
+      <strong>Created variable collections</strong>
+      <p>Used <code>figma_setup_design_tokens</code> to create organized collections: Colors (surface/bg, surface/elevated, surface/card, surface/border, text/primary through text/inverse, accent/violet through accent/amber-light, level/junior through level/past, type/keynote through type/break), Spacing (2xs through 3xl, 9 steps), Typography (display through 2xs, 10 sizes), Border Radius (sm through pill, 6 values).</p>
+    </li>
+    <li>
+      <strong>Created a new "Design System" page</strong>
+      <p>Via <code>figma_execute</code>, created a new page and built structured frames with auto-layout for each token category.</p>
+    </li>
+    <li>
+      <strong>Populated color swatches</strong>
+      <p>Generated labeled color swatches grouped by semantic category (Surface, Text, Accent, Level Badges, Session Type). Each swatch shows the variable name and is bound to the actual Figma variable &mdash; no hardcoded hex values.</p>
+    </li>
+    <li>
+      <strong>Built typography specimens</strong>
+      <p>Created a type scale showing each size from display (largest) down to 2xs, with the actual text rendered at that size alongside the variable name and pixel value.</p>
+    </li>
+    <li>
+      <strong>Built spacing and radius references</strong>
+      <p>Spacing: visual bars at each scale step with the variable name and pixel value. Border radius: rounded rectangles showing each radius value from tight corners to full pills.</p>
+    </li>
+    <li>
+      <strong>Created component instances</strong>
+      <p>Built the main UI components with their key variants: Chips (topic tags), Level Badges (4 colors), Session Type Badges (5 colors), Buttons (primary gradient + secondary outline), Avatars (with initials), and Match Card (the full composite component).</p>
+    </li>
+    <li>
+      <strong>Visual verification</strong>
+      <p>Called <code>figma_take_screenshot</code> to capture the result and verify everything rendered correctly.</p>
+    </li>
+  </ol>
+
+  <h4>The result</h4>
+
+  <img src="screenshots/slide-demo-result.png" alt="The generated design system page in Figma" class="slide-img">
+  <p class="slide-caption">The complete design system page generated from one prompt. Colors, Typography, Spacing, Border Radius, and Components — all bound to Figma variables.</p>
+
+  <p>A complete, professional design system page. Two-column layout: Colors and Typography on the left, Spacing, Border Radius, and Components on the right. Every element bound to variables. Every component showing its key variants. Created from one prompt, from a file that previously had nothing but flat layers with hardcoded values.</p>
+
+  <div class="callout">
+    <h4>Why this matters</h4>
+    <p>The traditional workflow for creating a design system page like this in Figma would take a designer <strong>hours to days</strong> of manual work: identifying all the unique values, creating variable collections, building and organizing swatches, rendering type specimens, documenting components. Console MCP compressed that into a single prompt. More importantly, the output is <strong>structurally correct</strong> &mdash; not just visually arranged, but properly bound to variables that can be referenced and updated across the entire file.</p>
+  </div>
+
+  <hr>
+
+  <!-- DEMO 2: TJ's Real UI Generation -->
+  <h3>Demo 2: AI Generating Real UI in Figma</h3>
+  <p class="lead" style="font-size:16px">TJ Pitre's most-viewed demo (5,777 views). Shows Claude generating mobile login and signup screens inside Figma using actual design system components. <a href="https://www.youtube.com/watch?v=BwcOI2osSCQ">Watch on YouTube</a></p>
+
+  <h4>What makes this different from Claude Design</h4>
+  <p>Claude Design generates <em>lookalikes</em> of your components &mdash; it references your design system but builds its own versions with inline styles. Console MCP generates designs using your <strong>actual components, actual tokens, and actual variables</strong>. The output is governed by your design system, not an AI approximation.</p>
+
+  <h4>The workflow</h4>
+  <ol class="steps">
+    <li>
+      <strong>Connect to the Figma file</strong>
+      <p>Open the Desktop Bridge plugin in the project. The Console MCP auto-connects to the AI client (Claude Code, Claude Desktop, or Cursor).</p>
+    </li>
+    <li>
+      <strong>Extract the design system</strong>
+      <p>Console MCP reads all variables, styles, components, and their variants. It now understands the full component library, color palette, type scale, and spacing system.</p>
+    </li>
+    <li>
+      <strong>Prompt for a new screen</strong>
+      <p>"Create a mobile login screen using the existing design system components." Claude uses <code>figma_search_components</code> to find relevant components (input fields, buttons, text styles), then <code>figma_execute</code> to compose them into a screen layout with proper spacing, alignment, and auto-layout.</p>
+    </li>
+    <li>
+      <strong>Iterate in natural language</strong>
+      <p>"Add a 'Sign up' link below the button" or "Switch to the dark theme variant." Because the elements are real component instances bound to real variables, theme switching just works &mdash; change the mode and all colors update.</p>
+    </li>
+  </ol>
+
+  <div class="callout">
+    <h4>Key distinction</h4>
+    <p>TJ's article "Claude Design Is Not a Design Systems Tool" (April 2026) tested this directly. When asked to generate a banner from an existing component library, Claude Design generated its own banner instead of using the actual component. A dashboard test imported no components and wrote inline styles. Console MCP's approach is fundamentally different: it discovers, instantiates, and composes <strong>your real library components</strong>.</p>
+  </div>
+
+  <hr>
+
+  <!-- DEMO 3: Parity Check -->
+  <h3>Demo 3: Automated Design-Code Parity with Codex</h3>
+  <p class="lead" style="font-size:16px">From TJ's Codex integration demo. Console MCP reads Figma specs, inspects TypeScript implementations, scores compatibility, and generates GitHub issues. <a href="https://www.youtube.com/watch?v=qY37qaowO5I">Watch on YouTube</a></p>
+
+  <h4>The workflow</h4>
+  <ol class="steps">
+    <li>
+      <strong>Select a component in Figma</strong>
+      <p>Scope your prompt to a specific component using "link to selection" &mdash; Console MCP's real-time awareness knows what you've selected.</p>
+    </li>
+    <li>
+      <strong>Run parity analysis</strong>
+      <p><code>figma_check_design_parity</code> compares the Figma component against the code implementation across 8 dimensions: spacing, colors, typography, border radius, shadow/elevation, layout structure, responsive behavior, and interaction states. Returns a score from 0 to 100.</p>
+    </li>
+    <li>
+      <strong>AI inspects the code</strong>
+      <p>The AI reads the corresponding TypeScript/React implementation, compares hardcoded values against design tokens, checks if the correct token names are used, identifies mismatches.</p>
+    </li>
+    <li>
+      <strong>Generate actionable output</strong>
+      <p>From the parity findings, the AI can: generate GitHub issues with specific remediation steps, create component patches automatically, or produce a batch audit report across multiple components.</p>
+    </li>
+  </ol>
+
+  <p>The power here is collapsing feedback loops. Instead of a designer manually comparing Figma to production and filing tickets, the AI evaluates design-code relationships directly and outputs structured findings.</p>
+
+  <hr>
+
+  <!-- DEMO 4: Figma Slides -->
+  <h3>Demo 4: Three Prompts to a Full Figma Slides Template</h3>
+  <p class="lead" style="font-size:16px">TJ created a complete branded slide template in ~20 minutes using Console MCP's Slides tools. <a href="https://www.youtube.com/watch?v=xHHjH1--3dM">Watch on YouTube</a></p>
+
+  <h4>The three prompts</h4>
+  <ol class="steps">
+    <li>
+      <strong>Prompt 1: Generate slide types from design tokens</strong>
+      <p>"Explore Brad Frost's JSON design token files. Create a slide template with all necessary slide types." The AI read the token files, understood the brand's typography (Montserrat headers) and color palette, and generated <strong>18 slide types</strong>: title slide, section dividers, quote slides, code slides, two-column layouts, image + text, bullet lists, and more. All using the correct brand tokens.</p>
+    </li>
+    <li>
+      <strong>Prompt 2: Populate the theme system</strong>
+      <p>"Populate the Figma Slides theme panel with the full color palette and typography from tokens." The AI mapped design tokens to Figma Slides' theme variables, populating the theme panel so slides automatically respond to theme changes. During this step, the AI also discovered previously overlooked color variations in the token files.</p>
+    </li>
+    <li>
+      <strong>Prompt 3: Bind everything to theme variables</strong>
+      <p>"Audit all elements and connect them to theme variables and text styles." The AI audited <strong>93 text nodes and 81 shapes</strong>, connecting each to the appropriate theme variable or text style. No hardcoded values remained.</p>
+    </li>
+  </ol>
+
+  <h4>The ongoing workflow</h4>
+  <p>With the template in place, TJ now writes slide outlines in Claude and the AI auto-creates decks, matching content to appropriate slide types. "You're not designing slides anymore. You're designing a system and then populating instances of it." ~95% of the work completed in 20 minutes; only minor refinements needed (body copy sizing, quote text enlargement).</p>
+
+  <hr>
+
+  <!-- DEMO 5: Mise en Place -->
+  <h3>Demo 5: DS from a Blank Directory</h3>
+  <p class="lead" style="font-size:16px">"Mise en Place for AI" &mdash; starting from an empty directory and ending with a fully token-connected design system. <a href="https://www.youtube.com/watch?v=vJGQWqK00No">Watch on YouTube</a></p>
+
+  <p>This demo shows the full end-to-end flow when starting from scratch. No existing Figma file, no existing code. The AI creates the token architecture in code (JSON), pushes it to Figma via Console MCP, creates the visual design system page, and sets up bidirectional sync so code and Figma stay aligned. It answers the question: "What if I don't have a design system yet?"</p>
+
+  <hr>
+
+  <!-- DEMO 6: Code-to-Design Parity -->
+  <h3>Demo 6: Claude Code to Figma vs Console MCP</h3>
+  <p class="lead" style="font-size:16px">TJ's comparison demo (3,798 views) that shows what most demos miss about design systems. <a href="https://www.youtube.com/watch?v=GC3tfmvg4Pw">Watch on YouTube</a></p>
+
+  <h4>The comparison</h4>
+  <table class="comparison-table" style="margin-top: 16px;">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Claude Code to Figma</th>
+        <th>Console MCP approach</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Input</strong></td>
+        <td>Screenshot of running UI</td>
+        <td>Live implementation code + DS tokens</td>
+      </tr>
+      <tr>
+        <td><strong>Output</strong></td>
+        <td>Flat design layers (visual approximation)</td>
+        <td>Governed system assets (token-bound components)</td>
+      </tr>
+      <tr>
+        <td><strong>Token binding</strong></td>
+        <td>None &mdash; hardcoded values</td>
+        <td>Full &mdash; every value references a variable</td>
+      </tr>
+      <tr>
+        <td><strong>Component reuse</strong></td>
+        <td>Generic layers, no DS components</td>
+        <td>Actual library component instances</td>
+      </tr>
+      <tr>
+        <td><strong>Theme switching</strong></td>
+        <td>Would need manual rebinding</td>
+        <td>Works immediately (variable modes)</td>
+      </tr>
+      <tr>
+        <td><strong>Audit trail</strong></td>
+        <td>None</td>
+        <td>Full parity scoring, drift detection</td>
+      </tr>
+      <tr>
+        <td><strong>Best for</strong></td>
+        <td>Quick stakeholder reviews, early exploration</td>
+        <td>Production DS management, governance</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>TJ's key argument: Claude Code to Figma is great for <strong>prototyping and exploration</strong>. Console MCP is for <strong>system parity and governance</strong>. They serve different purposes at different stages.</p>
+
+  <hr>
+
+  <!-- DEMO 7: Community -->
+  <h3>Demo 7: Community Examples</h3>
+
+  <h4>Joey Banks: 242 Color Swatches in One Session</h4>
+  <p>Joey Banks (known from the Baseline Design newsletter) used Console MCP to programmatically create 242 color swatches in a single session. His walkthrough video shows the full process: connecting the Desktop Bridge, prompting for bulk variable creation, and watching the swatches appear in Figma in real-time. <a href="https://www.youtube.com/watch?v=lwUCs6ci3Kg">Watch his walkthrough</a></p>
+
+  <h4>Aniruddha Sainkar: Complete Figma Make Kit</h4>
+  <p>Published on Design Systems Collective. Used <strong>both MCPs together</strong> in one session: official MCP for component context, Console MCP for system-level extraction. Audited <strong>711 variables, 42 pages, and 17 components</strong>. Created a complete Figma Make Kit (the file structure Figma recommends for Make-ready design systems) in a single session. <a href="https://www.designsystemscollective.com/creating-a-complete-figma-make-kit-in-one-session-using-claude-code-and-figma-console-mcp-a70c1ebd1bd3">Read the case study</a></p>
+
+  <h4>TJ's own meta-demo</h4>
+  <p>The definitive comparison article (Figma MCP vs Console MCP) was itself produced using Console MCP: comparison tables were designed programmatically in Figma via <code>figma_execute</code>, exported as images, and published to WordPress via a Southleft WordPress MCP. No manual design work was involved in creating the article's visuals.</p>
+
+</section>
+
+<!-- 8. WORKFLOWS -->
+<section id="workflows">
+  <p class="section-kicker">Section 8</p>
+  <h2>Emergent Workflows</h2>
+  <p class="lead">Patterns emerging from community usage, TJ's demos, and enterprise adoption.</p>
+
+  <h3>1. Token management at scale</h3>
+  <p><code>figma_batch_create_variables</code> creates up to 100 variables per call, 10-50x faster than individual operations. <code>figma_setup_design_tokens</code> creates an entire token system (collection + modes + variables) atomically. One user created 200+ variables in seconds. Joey Banks programmatically created 242 color swatches in one session.</p>
+
+  <h3>2. Design system extraction &amp; auditing</h3>
+  <p><code>figma_get_design_system_kit</code> extracts the full DS in one call: tokens, components, styles, visual specs. The experimental "Design System Dashboard" generates a Lighthouse-style audit scorecard. Ask Claude to "audit the design system" and it returns health scoring, per-variant token analysis, and hardcoded value detection catching DS violations.</p>
+
+  <h3>3. Bidirectional token sync</h3>
+  <p>New in v1.27-28. Export from Figma to 10 code formats (DTCG, CSS custom properties, Tailwind v3/v4, SCSS, TypeScript module, JSON flat/nested, Style Dictionary v3, Tokens Studio). Import back with diff-aware merge that only writes what changed. Round-trip safe: Figma variable IDs preserved through sync cycles. <strong>This replaces Style Dictionary end-to-end.</strong></p>
+
+  <h3>4. Component generation &amp; library work</h3>
+  <p>Full workflow: discover (<code>search_components</code>) &rarr; inspect (<code>get_library_component_by_key</code>) &rarr; instantiate (<code>instantiate_component</code>) &rarr; get library variables &rarr; import &amp; bind. Component properties (boolean, text, instance swap, variant) can be added, edited, or deleted programmatically.</p>
+
+  <h3>5. Design-code parity</h3>
+  <p>Compare Figma specs against code implementations across 8 dimensions, scored 0-100. Detect drift between design and production. TJ's Codex demo showed automated parity checks that generate GitHub issues from findings. Two directions: design as source of truth, or code as source of truth.</p>
+
+  <h3>6. Figma Slides templating</h3>
+  <p>TJ created a complete branded 18-slide-type template in ~20 minutes with 3 prompts. Claude reads design token files, generates slide types, populates theme panel, binds all elements to theme variables. Now he writes outlines and AI auto-creates decks. "You're not designing slides anymore. You're designing a system and populating instances of it."</p>
+
+  <h3>7. Documentation generation</h3>
+  <p><code>figma_generate_component_doc</code> creates platform-agnostic markdown documentation. Combined with Company Docs MCP, you can auto-generate or update usage guidelines and accessibility docs from your living design system. "What would take weeks manually takes minutes."</p>
+
+  <h3>8. Accessibility auditing</h3>
+  <p><code>figma_lint_design</code> runs 14 WCAG checks + DS hygiene + layout checks. <code>figma_audit_component_accessibility</code> produces deep scorecards with states, focus indicators, and color-blind simulation. <code>figma_scan_code_accessibility</code> scans HTML with axe-core (104 rules) without even needing a Figma connection.</p>
+
+  <div class="callout-amber callout">
+    <h4>Known limitations &amp; gotchas</h4>
+    <p>Large selections cause slow performance or incomplete responses. AI-generated designs still struggle with complex layouts. <code>setBoundVariableForPaint</code> returns a NEW paint that must be captured and reassigned. Pages load incrementally &mdash; use <code>await figma.setCurrentPageAsync(page)</code> before accessing content. New top-level nodes default to (0,0) causing overlap. Break designs into smaller logical units for best results. Always verify with <code>get_screenshot</code> after changes.</p>
+  </div>
+</section>
+
+<!-- 9. KEY CONCEPTS -->
+<section id="key-concepts">
+  <p class="section-kicker">Section 9</p>
+  <h2>Key Concepts from TJ's Writing</h2>
+  <p class="lead">The ideas that underpin the Console MCP philosophy. Useful framing for adoption conversations.</p>
+
+  <h3>Context-Based Design Systems (CBDS)</h3>
+  <p>Published July 2025, revisited May 2026. Core idea: a design system should encode not just how something looks, but <strong>what it means, how it behaves, and when it should be used</strong>. Context flows through every phase of the product lifecycle. Each step inherits structured information from the previous one, making the next step smarter.</p>
+  <p>Warning: upstream flaws cascade. "Bad naming, missing states, lack of intent &mdash; it's like injecting a virus into the system." The fix: design QA becomes as rigorous as code QA.</p>
+
+  <h3>Declared vs Designed documentation</h3>
+  <p>Published May 2026. Two documentation strategies for AI consumption:</p>
+  <ul>
+    <li><strong>Designed:</strong> Visual frames with do/don't pairs, callout boxes, multi-column layouts. Agents receive node trees and coordinates requiring interpretation. Expensive and unreliable.</li>
+    <li><strong>Declared:</strong> Description fields using markdown/plain text. Agents receive structured, parseable data. Cheap and correct. Stays synchronized with components during renames/deletions.</li>
+  </ul>
+  <p>Recommendation: prioritize description fields and annotations over designed doc frames. Keep designed docs for humans, provide declared equivalents for agents.</p>
+
+  <h3>Claude Design is not a design systems tool</h3>
+  <p>Published April 2026. Claude Design generates lookalikes of your components, not instances of them. When asked to use an existing component library, it generates its own versions with inline styles instead. Good for solo prototyping; not for production design systems where component governance matters.</p>
+
+  <h3>System parity, not code-to-design</h3>
+  <p>Claude Code's "code to Figma" captures running UI as flat layers (visual approximation). Console MCP reads live implementations and maps code to actual system components using tokens and variables (system alignment). One produces "generic layers," the other produces "governed system assets."</p>
+
+  <h3>The role shift</h3>
+  <p>Design system teams move from "keeper of the library" to "orchestrator of an intelligent system." AI handles repetitive scaling and maintenance; humans focus on strategy, quality, and exceptions. The CBDS model inverts the common "AI proposes, human approves" pattern: <strong>humans orchestrate upstream, AI executes within constraints.</strong></p>
+
+  <blockquote>"Tools change fast. <strong>Context compounds.</strong>"</blockquote>
+</section>
+
+<!-- 10. RECURRING PATTERNS -->
+<section id="patterns">
+  <p class="section-kicker">Section 10</p>
+  <h2>Recurring Patterns &amp; Findings</h2>
+  <p class="lead">Synthesized from 46 videos, 20+ blog posts, 14+ Substack articles, and community case studies. These are the ideas that keep surfacing.</p>
+
+  <h3>1. Context is the bottleneck, not AI capability</h3>
+  <p>This is the single most repeated theme across all of TJ's output. Every article, every demo eventually returns to the same point: the quality of AI output is directly proportional to the quality of what you feed it. A well-structured design system with clear naming, proper variants, and semantic tokens will produce reliable, governed output. A messy file with hardcoded values and inconsistent naming will produce garbage &mdash; faster than ever.</p>
+  <blockquote>"The bottleneck isn't AI capability. It's the clarity of what you hand it."<br><br>"Bad naming, missing states, lack of intent &mdash; it's like <strong>injecting a virus into the system</strong>. Without validation, that infection spreads through every downstream artifact."</blockquote>
+  <p>The practical implication: before adopting Console MCP (or any AI tooling), <strong>clean up your design system first</strong>. Fix token naming. Expose component properties. Add description fields. This is not wasted work &mdash; it makes the system more readable for humans too.</p>
+
+  <h3>2. Declared documentation beats designed documentation</h3>
+  <p>A pattern TJ identified in May 2026 that has significant implications for how DS teams structure their Figma files:</p>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-orange">Designed (human-first)</span>
+      <h4>Visual documentation frames</h4>
+      <p>Do/don't pairs, callout boxes, multi-column layouts. Looks great for humans, but agents receive it as node trees with coordinates. <strong>Requires interpretation. Expensive and unreliable.</strong></p>
+    </div>
+    <div class="card">
+      <span class="tag tag-green">Declared (agent-first)</span>
+      <h4>Description fields + annotations</h4>
+      <p>Markdown in component descriptions, structured annotations, plain-text metadata. Agents receive it as parseable data. <strong>No interpretation needed. Cheap and correct.</strong> Stays synchronized during renames/deletions.</p>
+    </div>
+  </div>
+  <p>This doesn't mean you stop designing documentation pages. It means you <strong>provide declared equivalents for agents</strong> alongside designed docs for humans. The description field on a component is more valuable to AI than a beautifully designed usage guidelines frame.</p>
+
+  <h3>3. The "both MCPs together" pattern</h3>
+  <p>Every experienced user converges on the same workflow: use both MCPs simultaneously. The community case studies (Aniruddha Sainkar auditing 711 variables, Kai-Uwe's three-column workflow) all arrive at the same split:</p>
+  <ul>
+    <li><strong>Console MCP for design system operations:</strong> token setup, variable management, batch operations, audits, parity checks, documentation generation, accessibility scanning</li>
+    <li><strong>Official MCP for code generation:</strong> Code Connect mappings, framework-specific output (React, Vue), component metadata for handoff</li>
+  </ul>
+  <p>Neither tool is trying to replace the other. They operate at different layers of the stack.</p>
+
+  <h3>4. Humans upstream, AI downstream</h3>
+  <p>TJ's Context-Based Design Systems framework inverts the common "AI proposes, human approves" model that most teams default to. Instead:</p>
+  <ul>
+    <li>Humans set intent, constraints, and quality standards <strong>upstream</strong></li>
+    <li>AI executes within those constraints <strong>downstream</strong></li>
+    <li>Validation catches drift before it propagates</li>
+  </ul>
+  <p>This matters because "propose-and-approve" creates a review bottleneck that scales linearly with AI output. The CBDS model front-loads the work (clean tokens, declared docs, proper naming) so AI can execute without constant human oversight. <strong>Humans stay ahead of the work, not behind it.</strong></p>
+
+  <h3>5. Design QA becomes as rigorous as code QA</h3>
+  <p>When AI can generate components, pages, and entire design systems from prompts, the quality bar shifts from "does it look right" to "is it structurally correct." Console MCP enables this with:</p>
+  <ul>
+    <li><strong>Parity scoring:</strong> 8-dimension comparison between Figma specs and code, scored 0-100</li>
+    <li><strong>Hardcoded value detection:</strong> find every element that uses a raw value instead of a token</li>
+    <li><strong>WCAG linting:</strong> 14 checks + axe-core's 104 rules, automated</li>
+    <li><strong>Version blame:</strong> binary-search through 200 versions to find when a property changed</li>
+  </ul>
+  <p>This makes "design system hygiene" measurable and automatable. The DS team can run audits continuously rather than manually reviewing files before releases.</p>
+
+  <h3>6. The role is shifting from keeper to orchestrator</h3>
+  <p>A recurring theme across TJ's content and in community discussions: the DS team's job is changing. With AI handling repetitive scaling, maintenance, and documentation, the human role becomes:</p>
+  <ul>
+    <li><strong>Strategy:</strong> what should the system contain, what are the design principles</li>
+    <li><strong>Quality:</strong> ensuring context flows correctly through the system</li>
+    <li><strong>Exceptions:</strong> handling the edge cases and novel patterns AI can't derive</li>
+    <li><strong>Orchestration:</strong> setting up the right tools, MCPs, and workflows for the team</li>
+  </ul>
+  <p>TJ calls this role the <strong>"Context Engineer"</strong> &mdash; not a prompt engineer, but a system steward who owns metadata, AI generation models, MCPs, and cross-tooling communication fidelity.</p>
+
+  <h3>7. The Figma Enterprise plan is no longer required</h3>
+  <p>A significant finding from v1.29: Console MCP's Plugin API path unlocks variable management on <strong>all Figma plans</strong> (Free, Pro, Org). The REST API path used by the official MCP requires Enterprise for variable endpoints. This matters for teams that want token management without the Enterprise price tag.</p>
+
+  <h3>8. Speed is real, but verification matters</h3>
+  <p>Across all demos and community reports, the speed gains are consistent: tasks that took hours/days manually are completed in minutes. But every experienced user emphasizes verification:</p>
+  <ul>
+    <li>Always screenshot after changes (<code>figma_take_screenshot</code>)</li>
+    <li>Check for cropped/clipped text and overlapping elements (the most common AI errors)</li>
+    <li>Break large files into smaller operations instead of one giant prompt</li>
+    <li>On <code>figma_execute</code> failure: stop, don't retry. Failed scripts are atomic.</li>
+    <li>Watch for <code>setBoundVariableForPaint</code> returning a new paint object that needs reassignment</li>
+  </ul>
+
+  <div class="callout">
+    <h4>The meta-pattern</h4>
+    <p>Every finding above maps to the same underlying principle: <strong>garbage in, garbage out &mdash; but at AI speed</strong>. Clean systems amplify productivity. Messy systems amplify mess. The investment is always upstream: naming, structure, declared metadata. The payoff is downstream: everything the AI produces from that foundation is proportionally better.</p>
+  </div>
+</section>
+
+<!-- 11. ESSENTIAL READING -->
+<section id="reading">
+  <p class="section-kicker">Section 11</p>
+  <h2>Essential Reading &amp; Watching</h2>
+  <p class="lead">Not a full catalog &mdash; just the pieces that teach you something you can't get from the docs alone.</p>
+
+  <h3>Start here (the foundation)</h3>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-purple">Article</span>
+      <h4><a href="https://southleft.com/insights/ai/figma-mcp-vs-figma-console-mcp/">Figma MCP vs Console MCP: Definitive Comparison</a></h4>
+      <p>The reference document for understanding both tools. 13 vs 106 tools, REST vs Plugin API, when to use which, how they complement. TJ made the comparison tables inside Figma using Console MCP.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-orange">Video</span>
+      <h4><a href="https://www.youtube.com/watch?v=BwcOI2osSCQ">AI Generating Real UI in Figma Using Your DS</a></h4>
+      <p>Most-viewed demo (5,777 views). Shows Claude generating mobile screens from actual library components. The difference between "lookalike" and "governed" output is visible.</p>
+    </div>
+  </div>
+
+  <h3>Go deeper (the philosophy)</h3>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-purple">Article</span>
+      <h4><a href="https://southleft.substack.com/p/designed-vs-declared-how-to-document">Designed vs Declared: Documenting a DS for AI</a></h4>
+      <p>Practical framework for making your DS agent-readable. Description fields over visual frames. Changes how you think about Figma documentation.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">Article</span>
+      <h4><a href="https://southleft.substack.com/p/context-based-design-systems-revisited">Context-Based Design Systems, Revisited</a></h4>
+      <p>One-year retrospective on CBDS. What held up, what changed. The "humans upstream, AI downstream" inversion. Designers contributing actual code.</p>
+    </div>
+  </div>
+
+  <h3>Practical demos (see it working)</h3>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-orange">Video</span>
+      <h4><a href="https://www.youtube.com/watch?v=GC3tfmvg4Pw">Claude Code to Figma vs Console MCP</a></h4>
+      <p>The "generic layers vs governed assets" comparison in action. Shows why screenshot-based approaches and Console MCP serve different purposes.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-orange">Video</span>
+      <h4><a href="https://www.youtube.com/watch?v=xHHjH1--3dM">Three Prompts to a Figma Slides Template</a></h4>
+      <p>The speed demonstration: 18 slide types, theme-bound, in 20 minutes. Practical and immediately replicable.</p>
+    </div>
+  </div>
+
+  <h3>For enterprise adoption</h3>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-orange">Video</span>
+      <h4><a href="https://www.youtube.com/watch?v=lIAGinZB9vg">"This Is Cute, But It's Not for Enterprise"</a></h4>
+      <p>TJ's direct response to enterprise skepticism. Addresses scale, governance, and audit concerns.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-green">Case study</span>
+      <h4><a href="https://www.designsystemscollective.com/creating-a-complete-figma-make-kit-in-one-session-using-claude-code-and-figma-console-mcp-a70c1ebd1bd3">Figma Make Kit in One Session</a></h4>
+      <p>Aniruddha Sainkar used both MCPs to audit 711 variables, 42 pages, 17 components. Real enterprise-scale numbers.</p>
+    </div>
+  </div>
+
+  <h3>Full index</h3>
+  <p>TJ's complete output: <a href="https://southleft.com/ai-design-systems/">southleft.com/ai-design-systems</a> (hub page) and <a href="https://southleft.substack.com">southleft.substack.com</a> (Substack). His <a href="https://www.youtube.com/playlist?list=PLtRFC5WUsQXNFGA_FCRlgUZ07fCNFh15s">YouTube playlist</a> has the full 5-part series and all 30+ demo videos. He is also building an <a href="https://aianddesign.systems">AI &amp; Design Systems course</a> with Brad Frost and Ian Frost.</p>
+</section>
+
+<!-- 12. RESOURCES -->
+<section id="resources">
+  <p class="section-kicker">Section 12</p>
+  <h2>Resources &amp; Links</h2>
+
+  <h3>Console MCP</h3>
+  <ul>
+    <li><a href="https://github.com/southleft/figma-console-mcp">GitHub Repository</a> (MIT, 1.7k stars)</li>
+    <li><a href="https://docs.figma-console-mcp.southleft.com">Documentation</a></li>
+    <li><a href="https://southleft.com/ai-design-systems/">AI &amp; Design Systems Hub</a> (index of all content)</li>
+    <li><a href="https://southleft.substack.com">Slot Machine Substack</a></li>
+    <li><a href="https://www.youtube.com/playlist?list=PLtRFC5WUsQXNFGA_FCRlgUZ07fCNFh15s">YouTube Playlist</a></li>
+  </ul>
+
+  <h3>Official Figma MCP</h3>
+  <ul>
+    <li><a href="https://www.figma.com/developers/mcp">Figma MCP Documentation</a></li>
+  </ul>
+
+  <h3>AI &amp; Design Systems Course</h3>
+  <ul>
+    <li><a href="https://aianddesign.systems">aianddesign.systems</a> (TJ Pitre + Brad Frost + Ian Frost)</li>
+  </ul>
+
+  <h3>Community</h3>
+  <ul>
+    <li><a href="https://www.designsystemscollective.com/creating-a-complete-figma-make-kit-in-one-session-using-claude-code-and-figma-console-mcp-a70c1ebd1bd3">Creating a Figma Make Kit with Claude Code + Console MCP</a> (Aniruddha Sainkar, Design Systems Collective)</li>
+    <li><a href="https://www.youtube.com/watch?v=lwUCs6ci3Kg">Joey Banks: The MCP Tool That's Changing How I Use Figma</a></li>
+  </ul>
+
+  <h3>Presentation source</h3>
+  <ul>
+    <li>Kai-Uwe (9elements): "Figma's MCPs: Bridging Design and Code with AI" &mdash; UXcamp 2026 (PDF on file)</li>
+  </ul>
+</section>
+
+</div>
+
+<footer style="text-align: center; padding: 40px 24px; border-top: 1px solid var(--border); margin-top: 0;">
+  <p style="font-size: 13px; color: #9CA3AF;">
+    Research compiled by Jelle Desramaults &middot; 28 May 2026<br>
+    Sources: GitHub, Southleft blog, Substack, YouTube, UXcamp PDF, Grok, community research
+  </p>
+</footer>
+
+<script>
+// Sticky nav: show after scrolling past hero
+const nav = document.getElementById('stickyNav');
+const hero = document.querySelector('.hero');
+const sections = document.querySelectorAll('section[id]');
+const navLinks = nav.querySelectorAll('a');
+
+const observer = new IntersectionObserver(([e]) => {
+  nav.classList.toggle('visible', !e.isIntersecting);
+}, { threshold: 0 });
+observer.observe(hero);
+
+// Scroll spy
+const sectionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = nav.querySelector(`a[href="#${entry.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => sectionObserver.observe(s));
+</script>
+</body>
+</html>
