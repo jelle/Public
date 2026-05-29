@@ -521,6 +521,7 @@
   <div class="sticky-nav-inner">
     <a href="#landscape">Landscape</a>
     <a href="#comparison">Comparison</a>
+    <a href="#hands-on">Hands-On Testing</a>
     <a href="#console-deep-dive">Deep Dive</a>
     <a href="#architecture">Architecture</a>
     <a href="#tools">106 Tools</a>
@@ -539,21 +540,22 @@
 <!-- HERO -->
 <header class="hero">
   <h1>Figma <span class="orange">MCPs</span> &amp; the <span class="purple">Console MCP</span><br>Deep Dive</h1>
-  <p class="subtitle">A comprehensive analysis of Figma's MCP ecosystem, with a deep dive into TJ Pitre's open-source Console MCP and how it changes design system workflows.</p>
-  <p class="meta">Compiled 28 May 2026 &middot; Sources: GitHub, Substack, Southleft blog, YouTube (46 videos), UXcamp presentation, community research</p>
+  <p class="subtitle">A comprehensive analysis of Figma's MCP ecosystem &mdash; four tools, their real strengths, and what nobody is comparing. Includes hands-on benchmarks.</p>
+  <p class="meta">Compiled 28 May 2026, updated 29 May 2026 &middot; Sources: GitHub, Substack, Southleft blog, YouTube (46 videos), UXcamp presentation, Perplexity deep research, hands-on testing</p>
 </header>
 
 <!-- TABLE OF CONTENTS -->
 <nav class="toc">
   <h2>Contents</h2>
   <ol>
-    <li><a href="#landscape">The Landscape: Three Figma MCPs</a></li>
+    <li><a href="#landscape">The Landscape: Four Figma + AI Tools</a></li>
     <li><a href="#comparison">Head-to-Head Comparison</a></li>
+    <li><a href="#hands-on">Hands-On Testing: The Comparison Nobody Published</a></li>
     <li><a href="#console-deep-dive">Deep Dive: Figma Console MCP</a></li>
     <li><a href="#architecture">Architecture &amp; Setup</a></li>
     <li><a href="#tools">The 106 Tools</a></li>
     <li><a href="#tj-pitre">Who is TJ Pitre</a></li>
-    <li><a href="#demo">The Demo: DS from a Single Prompt</a></li>
+    <li><a href="#demo">The Demos: Step by Step</a></li>
     <li><a href="#workflows">Emergent Workflows</a></li>
     <li><a href="#key-concepts">Key Concepts from TJ's Writing</a></li>
     <li><a href="#patterns">Recurring Patterns &amp; Findings</a></li>
@@ -565,24 +567,29 @@
 <!-- 1. THE LANDSCAPE -->
 <section id="landscape">
   <p class="section-kicker">Section 1</p>
-  <h2>The Landscape: Three Figma MCPs</h2>
-  <p class="lead">There are three distinct MCP servers for Figma, each with a fundamentally different architecture and purpose. Understanding which does what is the first step.</p>
+  <h2>The Landscape: Four Figma + AI Tools</h2>
+  <p class="lead">There are four distinct ways to connect AI to Figma, each with a fundamentally different architecture and purpose. Most comparisons only cover two or three of these. Understanding all four is the first step.</p>
 
   <div class="card-grid">
     <div class="card">
       <span class="tag tag-orange">Figma, Inc.</span>
-      <h4>Figma MCP (Official)</h4>
+      <h4>Official Figma MCP</h4>
       <p>Figma's first-party MCP. Primarily a <strong>design-to-code bridge</strong>. Uses the REST API for structured read access to files, components, variables, and Code Connect mappings. Recently added beta write capabilities. 16 tools. Rate-limited. Closed source.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-green">Anthropic / Figma</span>
+      <h4>Claude Plugin (Figma Make)</h4>
+      <p>Anthropic's official Figma integration, available inside Claude Code and Claude Desktop. Provides <code>use_figma</code>, <code>get_design_context</code>, <code>search_design_system</code>, and design generation skills. <strong>Best visual quality</strong> of any option. Reads attached libraries fluidly. Runs via Figma's cloud relay.</p>
     </div>
     <div class="card">
       <span class="tag tag-purple">Southleft / TJ Pitre</span>
       <h4>Figma Console MCP</h4>
       <p>A full <strong>design system API</strong> with deep bidirectional control. Uses the Plugin API via a Desktop Bridge. 106 tools. Extraction, creation, modification, debugging, token management, accessibility, FigJam, Slides, version history. Open source (MIT). No rate limits.</p>
     </div>
-    <div class="card">
-      <span class="tag tag-green">Anthropic / Figma</span>
-      <h4>Figma Plugin (for Claude)</h4>
-      <p>Anthropic's official Figma integration, available as a plugin inside Claude Code and Claude Desktop. Provides <code>use_figma</code> for Plugin API execution, <code>get_design_context</code>, <code>search_design_system</code>, and design generation skills. Runs via Figma's cloud.</p>
+    <div class="card" style="border-color: #C4B5FD;">
+      <span class="tag" style="background: #DBEAFE; color: #1E40AF;">Anthropic</span>
+      <h4>Claude Design (Web App)</h4>
+      <p>Standalone design workspace at <strong>claude.ai/design</strong>. Best for <strong>exploration and ideation</strong> &mdash; generating first-draft layouts, brainstorming visual directions, exploring multiple concepts. Imports from and exports to Figma, but is a separate environment. Not an MCP.</p>
     </div>
   </div>
 
@@ -591,9 +598,9 @@
     <br>&mdash; Kai-Uwe, 9elements (UXcamp 2026)
   </blockquote>
 
-  <p>The key architectural distinction: <strong>REST API vs Plugin API</strong>. The official MCP reads design data through Figma's REST endpoints, which are rate-limited and read-only (write is in beta). The Console MCP runs a Desktop Bridge plugin inside Figma and communicates via WebSocket, giving it the same power as any native Figma plugin: create nodes, modify properties, manage variables, listen for events.</p>
+  <p>The key architectural distinction: <strong>REST API vs Plugin API vs Cloud Relay</strong>. The official MCP reads design data through Figma's REST endpoints (rate-limited, mostly read-only). The Console MCP runs a Desktop Bridge plugin inside Figma via WebSocket, giving it full native plugin power. The Claude Plugin uses Figma's cloud relay for a sandboxed but visually intelligent connection. Claude Design operates as a separate canvas entirely.</p>
 
-  <p>They are <strong>complementary, not competing</strong>. The emerging consensus: use Console MCP during the design phase (token setup, system management, audits), use the official MCP during handoff (Code Connect, framework-specific code generation).</p>
+  <p>They are <strong>complementary, not competing</strong>. But most existing comparisons leave out the Claude Plugin entirely &mdash; and that omission matters, because for design generation work, it outperforms Console MCP on visual quality, speed, and library awareness (see Section 3: Hands-On Testing).</p>
 
   <img src="screenshots/slide-architecture-flow.png" alt="Architecture: Code to Figma and Figma to Code flow diagram" class="slide-img">
   <p class="slide-caption">From Kai-Uwe's UXcamp 2026 presentation: the bidirectional flow between Figma and Code, showing which MCP handles each direction.</p>
@@ -603,7 +610,7 @@
 <section id="comparison">
   <p class="section-kicker">Section 2</p>
   <h2>Head-to-Head Comparison</h2>
-  <p class="lead">Numbers as of May 2026. The Console MCP has grown from 14 tools (remote) / 57 (local) in January to 106 tools in v1.29.0.</p>
+  <p class="lead">Numbers as of May 2026. Includes the Claude Plugin (Figma Make) as a proper third column &mdash; something most published comparisons omit. Performance data from hands-on testing (Section 3).</p>
 
   <img src="screenshots/slide-comparison-table.png" alt="Side-by-side comparison: 16 tools vs 94+ tools" class="slide-img">
   <p class="slide-caption">From Kai-Uwe's UXcamp presentation. The headline numbers: 16 vs 94+ tools, with Console MCP offering full API access, batch operations, real-time awareness, and no rate limits.</p>
@@ -726,13 +733,149 @@
         <td><strong>Free forever</strong></td>
         <td>Included with Claude</td>
       </tr>
+      <tr style="background: var(--pastel-peach);">
+        <td colspan="4" style="font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; color: #9A3412; padding-top: 16px;">From hands-on testing (Section 3)</td>
+      </tr>
+      <tr>
+        <td><strong>Visual quality (out of box)</strong></td>
+        <td>N/A</td>
+        <td style="color: #DC2626;">Low &mdash; needs explicit recipes</td>
+        <td class="check" style="color: var(--accent-green);"><strong>High</strong> &mdash; design intuition built in</td>
+      </tr>
+      <tr>
+        <td><strong>Component import speed</strong></td>
+        <td>N/A</td>
+        <td>20-30s per call, frequent timeouts</td>
+        <td class="check">~5s, seamless</td>
+      </tr>
+      <tr>
+        <td><strong>Spec sheet build</strong></td>
+        <td>N/A</td>
+        <td>3-5 calls (chunked to avoid timeout)</td>
+        <td class="check">1 call</td>
+      </tr>
+      <tr>
+        <td><strong>Visual self-review</strong></td>
+        <td class="cross">No</td>
+        <td class="cross">Manual screenshot loop</td>
+        <td class="check">Built in</td>
+      </tr>
+      <tr>
+        <td><strong>Library awareness</strong></td>
+        <td>Via REST endpoints</td>
+        <td>Via Plugin API (slow imports)</td>
+        <td class="check">Reads attached libraries fluidly</td>
+      </tr>
     </tbody>
   </table>
 </section>
 
-<!-- 3. DEEP DIVE -->
-<section id="console-deep-dive">
+<!-- 3. HANDS-ON TESTING -->
+<section id="hands-on">
   <p class="section-kicker">Section 3</p>
+  <h2>Hands-On Testing: The Comparison Nobody Published</h2>
+  <p class="lead">As of May 2026, no one has published an honest side-by-side visual quality comparison between Console MCP and the Claude Plugin. Not TJ Pitre, not Figma, not the community. This section fills that gap with real numbers from building component spec sheets in both tools.</p>
+
+  <div class="callout-amber callout">
+    <h4>Why this gap exists</h4>
+    <p>Three factors: <strong>(1)</strong> TJ Pitre built Console MCP &mdash; his demos naturally showcase his tool, not competitors. <strong>(2)</strong> The Console MCP community (developers, DS engineers) and the Claude Plugin community (designers) are separate bubbles that don't cross-test. <strong>(3)</strong> Many Console MCP demos were recorded before the Claude Plugin reached its current capabilities.</p>
+  </div>
+
+  <h3>The test</h3>
+  <p>Built 6 component spec sheets for a Simple Design System (Button, Input Field, Navigation Pill, Icon Button, Header, Footer) in Figma. The Button was built with the Claude Plugin. The other 5 were built with the Console MCP. Same design system, same spec sheet format, same Claude model.</p>
+
+  <h3>Results</h3>
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th style="color: #065F46;">Claude Plugin</th>
+        <th style="color: #5B21B6;">Console MCP</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Component import</strong></td>
+        <td class="check">~5s</td>
+        <td>20-30s (often timeout at 30s limit)</td>
+      </tr>
+      <tr>
+        <td><strong>Spec sheet build</strong></td>
+        <td class="check">1 call</td>
+        <td>3-5 calls (chunked)</td>
+      </tr>
+      <tr>
+        <td><strong>Visual quality</strong></td>
+        <td class="check"><strong>High</strong> (out of box)</td>
+        <td>Low (needs 130-line skill recipe)</td>
+      </tr>
+      <tr>
+        <td><strong>Self-review</strong></td>
+        <td class="check">Built in</td>
+        <td>Manual screenshot loop</td>
+      </tr>
+      <tr>
+        <td><strong>Full Plugin API access</strong></td>
+        <td>Sandboxed</td>
+        <td class="check"><strong>Yes</strong> (106 tools)</td>
+      </tr>
+      <tr>
+        <td><strong>FigJam support</strong></td>
+        <td class="cross">No</td>
+        <td class="check">Yes (9 tools)</td>
+      </tr>
+      <tr>
+        <td><strong>Variable CRUD</strong></td>
+        <td>Limited</td>
+        <td class="check"><strong>Full</strong> (11 dedicated tools)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>What the Claude Plugin does better</h3>
+  <p>The Claude Plugin generates polished designs out of the box &mdash; dark hero headers, proper type hierarchy, balanced spacing, good visual grouping. <strong>It thinks like a designer.</strong> It also reads attached library files fluidly from project files, making component reuse seamless.</p>
+  <p>The Console MCP dumps elements on a canvas unless you tell it exactly what to build. Creating a comparable output required a 130-line skill file specifying exact font sizes, colors, spacing values, and layout patterns &mdash; reverse-engineered from what the Claude Plugin produced naturally.</p>
+
+  <h3>What the Console MCP does better</h3>
+  <p>The Console MCP has raw power the Claude Plugin can't match: 106 tools for programmatic bulk operations, full variable CRUD, bidirectional token sync (replaces Style Dictionary), WCAG accessibility scanning, FigJam board creation, Figma Slides templating, version history with binary-search blame, and CI/CD integration.</p>
+  <p>Its killer feature is <code>figma_execute</code>: arbitrary Plugin API JavaScript execution. Anything a native Figma plugin can do, Console MCP can do via conversation. The Claude Plugin's <code>use_figma</code> is sandboxed by comparison.</p>
+
+  <h3>The workaround that saved Console MCP</h3>
+  <p>Library component imports via <code>importComponentSetByKeyAsync</code> take 20-30 seconds and frequently timeout at the 30-second execution limit. The workaround: <strong>clone existing component instances</strong> already placed in the design file instead of importing from the library. Near-instant, and keeps all variant properties. Scan the page for instances, map them by component name, then <code>.clone()</code> + <code>.setProperties()</code>.</p>
+
+  <h3>The four-tool framework</h3>
+  <p>The mistake is thinking one tool replaces the others. Each has a clear lane:</p>
+  <div class="card-grid">
+    <div class="card">
+      <span class="tag tag-green">Design generation</span>
+      <h4>Claude Plugin</h4>
+      <p>Use when you need polished designs, library-aware composition, and visual quality without writing recipes. The best tool for actually designing in Figma.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-purple">System engineering</span>
+      <h4>Console MCP</h4>
+      <p>Use for bulk operations, token management, accessibility audits, parity checks, FigJam, Slides, and anything that needs full Plugin API access or CI/CD integration.</p>
+    </div>
+    <div class="card">
+      <span class="tag tag-orange">Code handoff</span>
+      <h4>Official Figma MCP</h4>
+      <p>Use for design-to-code handoff, Code Connect mappings, and framework-specific code generation. The bridge between Figma and your codebase.</p>
+    </div>
+    <div class="card" style="border-color: #C4B5FD;">
+      <span class="tag" style="background: #DBEAFE; color: #1E40AF;">Exploration</span>
+      <h4>Claude Design</h4>
+      <p>Use for early-stage ideation, brainstorming layout directions, and generating first drafts. Separate workspace that imports from and exports to Figma.</p>
+    </div>
+  </div>
+
+  <blockquote>
+    "If you're designing, use the Claude Plugin. If you're engineering design systems, use the Console MCP. If you're coding from designs, use the Official MCP. <strong>The mistake is thinking one replaces the others.</strong>"
+  </blockquote>
+</section>
+
+<!-- 4. DEEP DIVE -->
+<section id="console-deep-dive">
+  <p class="section-kicker">Section 4</p>
   <h2>Deep Dive: Figma Console MCP</h2>
   <p class="lead">What started as a debugging tool for Figma plugins has evolved into a full design system operations platform with 106 tools.</p>
 
@@ -756,7 +899,7 @@
 
 <!-- 4. ARCHITECTURE -->
 <section id="architecture">
-  <p class="section-kicker">Section 4</p>
+  <p class="section-kicker">Section 5</p>
   <h2>Architecture &amp; Setup</h2>
 
   <h3>Three connection modes</h3>
@@ -797,7 +940,7 @@ AI Client <span class="green">--HTTP--></span> Cloudflare Worker <span class="gr
 
 <!-- 5. TOOLS -->
 <section id="tools">
-  <p class="section-kicker">Section 5</p>
+  <p class="section-kicker">Section 6</p>
   <h2>The 106 Tools</h2>
   <p class="lead">Categorized by function. All tools available in Local mode; Cloud mode has 95; Remote SSE has 9.</p>
 
@@ -884,7 +1027,7 @@ AI Client <span class="green">--HTTP--></span> Cloudflare Worker <span class="gr
 
 <!-- 6. TJ PITRE -->
 <section id="tj-pitre">
-  <p class="section-kicker">Section 6</p>
+  <p class="section-kicker">Section 7</p>
   <h2>Who is TJ Pitre</h2>
 
   <p>TJ Pitre runs <strong>Southleft</strong>, a design systems consultancy. He built Figma Console MCP and maintains it as open source (MIT). He works with <strong>Brad Frost</strong> (of Atomic Design fame) and <strong>Ian Frost</strong>, and together they're building an <a href="https://aianddesign.systems">AI &amp; Design Systems course</a>.</p>
@@ -904,7 +1047,7 @@ AI Client <span class="green">--HTTP--></span> Cloudflare Worker <span class="gr
   <ul>
     <li><strong>Figma Console MCP</strong> &mdash; the main tool (this document)</li>
     <li><strong>FigmaLint</strong> &mdash; audit and score components, WCAG compliance</li>
-    <li><strong>Story UI</strong> &mdash; natural language UI generation from component libraries in Storybook</li>
+    <li><strong>Story UI</strong> &mdash; npm package that installs into a Storybook project and spins up both Storybook and a local MCP server. You type natural-language prompts ("build a login form with the login card and button set") and it generates real Storybook stories using your actual design system components. Framework-agnostic. This is the code-side counterpart to Console MCP: Console MCP operates inside Figma, Story UI operates inside Storybook. TJ's typical pipeline: Figma &rarr; Console MCP (extract) &rarr; Cursor (generate components) &rarr; Storybook + Story UI (compose layouts and test).</li>
     <li><strong>Company Docs MCP</strong> &mdash; turn documentation into an AI assistant</li>
     <li><strong>Southleft WordPress MCP</strong> &mdash; CMS management via AI</li>
   </ul>
@@ -912,7 +1055,7 @@ AI Client <span class="green">--HTTP--></span> Cloudflare Worker <span class="gr
 
 <!-- 7. THE DEMOS -->
 <section id="demo">
-  <p class="section-kicker">Section 7</p>
+  <p class="section-kicker">Section 8</p>
   <h2>The Demos: Step by Step</h2>
   <p class="lead">Detailed walkthroughs of the key demos that show what Console MCP can actually do. These are not marketing videos &mdash; they show real prompts, real tool calls, and real output.</p>
 
@@ -1196,7 +1339,7 @@ When done, verify the result visually.</code></pre>
 
 <!-- 8. WORKFLOWS -->
 <section id="workflows">
-  <p class="section-kicker">Section 8</p>
+  <p class="section-kicker">Section 9</p>
   <h2>Emergent Workflows</h2>
   <p class="lead">Patterns emerging from community usage, TJ's demos, and enterprise adoption.</p>
 
@@ -1232,7 +1375,7 @@ When done, verify the result visually.</code></pre>
 
 <!-- 9. KEY CONCEPTS -->
 <section id="key-concepts">
-  <p class="section-kicker">Section 9</p>
+  <p class="section-kicker">Section 10</p>
   <h2>Key Concepts from TJ's Writing</h2>
   <p class="lead">The ideas that underpin the Console MCP philosophy. Useful framing for adoption conversations.</p>
 
@@ -1262,7 +1405,7 @@ When done, verify the result visually.</code></pre>
 
 <!-- 10. RECURRING PATTERNS -->
 <section id="patterns">
-  <p class="section-kicker">Section 10</p>
+  <p class="section-kicker">Section 11</p>
   <h2>Recurring Patterns &amp; Findings</h2>
   <p class="lead">Synthesized from 46 videos, 20+ blog posts, 14+ Substack articles, and community case studies. These are the ideas that keep surfacing.</p>
 
@@ -1287,13 +1430,15 @@ When done, verify the result visually.</code></pre>
   </div>
   <p>This doesn't mean you stop designing documentation pages. It means you <strong>provide declared equivalents for agents</strong> alongside designed docs for humans. The description field on a component is more valuable to AI than a beautifully designed usage guidelines frame.</p>
 
-  <h3>3. The "both MCPs together" pattern</h3>
-  <p>Every experienced user converges on the same workflow: use both MCPs simultaneously. The community case studies (Aniruddha Sainkar auditing 711 variables, Kai-Uwe's three-column workflow) all arrive at the same split:</p>
+  <h3>3. The four-tool pattern (not "both MCPs")</h3>
+  <p>Early adopters converged on "use both MCPs together." But that framing misses the Claude Plugin entirely &mdash; and for design generation, it's the best option. The updated split:</p>
   <ul>
-    <li><strong>Console MCP for design system operations:</strong> token setup, variable management, batch operations, audits, parity checks, documentation generation, accessibility scanning</li>
-    <li><strong>Official MCP for code generation:</strong> Code Connect mappings, framework-specific output (React, Vue), component metadata for handoff</li>
+    <li><strong>Claude Plugin for design generation:</strong> polished layouts, library-aware composition, visual quality without recipes</li>
+    <li><strong>Console MCP for system engineering:</strong> token setup, variable management, batch operations, audits, parity checks, documentation generation, accessibility scanning, FigJam, Slides</li>
+    <li><strong>Official MCP for code handoff:</strong> Code Connect mappings, framework-specific output (React, Vue), component metadata</li>
+    <li><strong>Claude Design for exploration:</strong> early-stage ideation, brainstorming multiple layout directions, first drafts before committing to Figma</li>
   </ul>
-  <p>Neither tool is trying to replace the other. They operate at different layers of the stack.</p>
+  <p>Most published comparisons only cover two of these four. Nobody in the Console MCP community benchmarks against the Claude Plugin, and nobody in the Claude Plugin community tests Console MCP's bulk operations. The tools operate at different layers of the stack &mdash; the mistake is evaluating one as if it should do what another does.</p>
 
   <h3>4. Humans upstream, AI downstream</h3>
   <p>TJ's Context-Based Design Systems framework inverts the common "AI proposes, human approves" model that most teams default to. Instead:</p>
@@ -1345,7 +1490,7 @@ When done, verify the result visually.</code></pre>
 
 <!-- 11. ESSENTIAL READING -->
 <section id="reading">
-  <p class="section-kicker">Section 11</p>
+  <p class="section-kicker">Section 12</p>
   <h2>Essential Reading &amp; Watching</h2>
   <p class="lead">Not a full catalog &mdash; just the pieces that teach you something you can't get from the docs alone.</p>
 
@@ -1411,7 +1556,7 @@ When done, verify the result visually.</code></pre>
 
 <!-- 12. RESOURCES -->
 <section id="resources">
-  <p class="section-kicker">Section 12</p>
+  <p class="section-kicker">Section 13</p>
   <h2>Resources &amp; Links</h2>
 
   <h3>Console MCP</h3>
@@ -1448,9 +1593,9 @@ When done, verify the result visually.</code></pre>
 </div>
 
 <footer style="text-align: center; padding: 40px 24px; border-top: 1px solid var(--border); margin-top: 0;">
-  <p style="font-size: 13px; color: #9CA3AF;">
-    Research compiled by Jelle Desramaults &middot; 28 May 2026<br>
-    Sources: GitHub, Southleft blog, Substack, YouTube, UXcamp PDF, Grok, community research
+  <p style="font-size: 16px; color: #9CA3AF;">
+    Research compiled by Jelle Desramaults &middot; 28-29 May 2026<br>
+    Sources: GitHub, Southleft blog, Substack, YouTube, UXcamp PDF, Perplexity deep research, hands-on testing, community research
   </p>
 </footer>
 
